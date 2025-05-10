@@ -1,0 +1,1 @@
+livekit-server.exe --dev --bind 0.0.0.0

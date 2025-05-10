@@ -1,0 +1,1 @@
+lk token create --api-key devkey --api-secret secret --join --room test_room --identity test_user  --valid-for 24h
