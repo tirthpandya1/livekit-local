@@ -24,7 +24,7 @@ services:
     build:
       context: ./Orpheus-FastAPI
       # # Dockerfile path relative to the context directory (Orpheus-FastAPI)
-      # dockerfile: ./Orpheus-FastAPI/Dockerfile.gpu # Assuming GPU, change to Dockerfile.cpu if needed
+      dockerfile: Dockerfile.gpu # Assuming GPU, change to Dockerfile.cpu if needed
     ports:
       - "5005:5005"
     env_file:
@@ -147,9 +147,9 @@ services:
   local-agent:
     container_name: local_voice_ai_agent
     build:
-      context: ./local-voice-agent/agent
+      context: ./local-voice-ai/agent
       # # Specify the full relative path to the Dockerfile from the current directory
-      # dockerfile: ./local-voice-ai/agent/Dockerfile
+      dockerfile: Dockerfile
     env_file:
       - .env # For LIVEKIT_API_KEY, LIVEKIT_API_SECRET
     environment:
@@ -175,7 +175,7 @@ services:
     build:
       context: ./local-voice-ai/voice-assistant-frontend
       # # Dockerfile path relative to the context directory (local-voice-ai/voice-assistant-frontend)
-      # dockerfile: ./local-voice-ai/voice-assistant-frontend/Dockerfile
+      dockerfile: Dockerfile
       # Pass build args for external LiveKit URL if needed by Dockerfile
       args:
         NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
