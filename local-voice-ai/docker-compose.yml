@@ -1,0 +1,84 @@
+services:
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    ports:
+      - "8880:8880"
+    networks:
+      - agent_network
+
+  livekit:
+    image: livekit/livekit-server:latest
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+    command: --dev --bind "0.0.0.0"
+    networks:
+      - agent_network
+
+  whisper:
+    build:
+      context: ./whisper
+    volumes:
+      - whisper-data:/data
+    ports:
+      - "11435:80"
+    networks:
+      - agent_network
+
+  ollama:
+    build:
+      context: ./ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - agent_network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 6G
+
+  agent:
+    build:
+      context: ./agent
+    environment:
+      - LIVEKIT_HOST=ws://livekit:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secret
+      - LIVEKIT_AGENT_PORT=7880
+      - OPENAI_API_KEY=no-key-needed
+      - GROQ_API_KEY=no-key-needed
+    depends_on:
+      - livekit
+      - kokoro
+      - whisper
+      - ollama
+    networks:
+      - agent_network
+
+  frontend:
+    build:
+      context: ./voice-assistant-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
+      - LIVEKIT_URL=ws://livekit:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secret
+      - NEXT_PUBLIC_LIVEKIT_API_KEY=devkey
+    depends_on:
+      - livekit
+    networks:
+      - agent_network
+
+volumes:
+  ollama:
+  whisper-data:
+
+networks:
+  agent_network:
+    driver: bridge

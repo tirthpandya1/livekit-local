@@ -1,0 +1,1 @@
+Our LLM is Ollama running gemma3:4b for language model inference

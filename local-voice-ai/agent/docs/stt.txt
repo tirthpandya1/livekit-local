@@ -1,0 +1,1 @@
+Whisper is used for speech-to-text (STT)
