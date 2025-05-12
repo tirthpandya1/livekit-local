@@ -56,16 +56,16 @@ async def rag_lookup(query: str) -> str:
 class LocalAgent(Agent):
     def __init__(self) -> None:
         stt = openai.STT(
-            base_url="http://localhost:8000/v1",
+            base_url="http://stt-api:8000/v1",
             model="Systran/faster-whisper-large-v3",
             detect_language=True           
             )
         llm = openai.LLM(
-            base_url="http://localhost:11434/v1",
+            base_url="http://ollama:11434/v1",
             model="llama3.2:3b"
             )
         tts = groq.TTS(
-            base_url="http://localhost:5005/v1",
+            base_url="http://orpheus-tts-api:5005/v1",
             voice="ऋतिका"
             )
         vad_inst = silero.VAD.load()

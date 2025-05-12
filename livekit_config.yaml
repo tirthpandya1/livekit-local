@@ -1,0 +1,23 @@
+# Basic LiveKit configuration for local development
+# For more options, see: https://docs.livekit.io/self-hosting/configuration
+
+port: 7880 # API port for clients (WS)
+bind_addresses: # Addresses to bind to for the API server
+  - 0.0.0.0
+rtc:
+  tcp_port: 7881
+  # udp_port: 7882 # If not using a range
+  port_range_start: 5000 # Must match docker-compose port mapping
+  port_range_end: 6000   # Must match docker-compose port mapping
+
+# Development mode settings (optional, useful for local dev)
+development: true
+
+# API keys (replace with your own in production)
+keys:
+  devkey: secret
+
+# Logging configuration
+logging:
+  level: debug
+  format: text

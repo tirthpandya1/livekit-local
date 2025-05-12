@@ -1,0 +1,183 @@
+version: '3.8'
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit_server
+    command: --config /etc/livekit.yaml
+    ports:
+      - "${LIVEKIT_TCP_PORT:-7881}:${LIVEKIT_TCP_PORT:-7881}" # WebRTC over TCP
+      - "${LIVEKIT_UDP_PORT_START:-5000}-${LIVEKIT_UDP_PORT_END:-6000}:${LIVEKIT_UDP_PORT_START:-5000}-${LIVEKIT_UDP_PORT_END:-6000}/udp" # WebRTC over UDP
+      - "7880:7880" # Client API (WS)
+    volumes:
+      - ./livekit_config.yaml:/etc/livekit.yaml
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      - LIVEKIT_PORT=7880
+      - LIVEKIT_RTC_PORT=${LIVEKIT_TCP_PORT:-7881}
+      - LIVEKIT_UDP_PORT_START=${LIVEKIT_UDP_PORT_START:-5000}
+      - LIVEKIT_UDP_PORT_END=${LIVEKIT_UDP_PORT_END:-6000}
+    restart: unless-stopped
+    networks:
+      - voice_ai_net
+
+  orpheus-tts-api:
+    container_name: orpheus_tts_api
+    build:
+      context: ./Orpheus-FastAPI
+      dockerfile: Dockerfile.cpu # Use CPU Dockerfile
+    ports:
+      - "5005:5005"
+    env_file:
+      - .env # For ORPHEUS_MODEL_NAME, ORPHEUS_MAX_TOKENS etc. from root .env
+    environment:
+      - ORPHEUS_API_URL=${ORPheus_TTS_MODEL_BACKEND_INTERNAL_URL}
+      - ORPHEUS_PORT=5005 # Ensure this matches the Dockerfile if it's hardcoded there
+      - ORPHEUS_HOST=0.0.0.0
+    # Remove GPU deploy section
+    restart: unless-stopped
+    depends_on:
+      orpheus-tts-model:
+        condition: service_started
+    networks:
+      - voice_ai_net
+
+  orpheus-tts-model: # This is the llama.cpp server for Orpheus
+    container_name: orpheus_tts_model_backend
+    image: ghcr.io/ggml-org/llama.cpp:server # Use CPU image
+    ports:
+      - "5006:5006" # Expose if direct access needed, otherwise internal
+    volumes:
+      - ./Orpheus-FastAPI/models:/models # Mount models directory
+    env_file:
+      - .env # For ORPHEUS_MODEL_NAME, ORPHEUS_MAX_TOKENS
+    depends_on:
+      orpheus-model-downloader:
+        condition: service_completed_successfully
+    # Remove GPU deploy section
+    restart: unless-stopped
+    command: >
+      -m /models/${ORPHEUS_MODEL_NAME}
+      --port 5006
+      --host 0.0.0.0
+      --ctx-size ${ORPHEUS_MAX_TOKENS}
+      --n-predict ${ORPHEUS_MAX_TOKENS}
+      --rope-scaling linear
+    networks:
+      - voice_ai_net
+
+  orpheus-model-downloader:
+    container_name: orpheus_model_downloader
+    image: curlimages/curl:latest
+    user: "${UID:-1000}:${GID:-1000}" # Use host user to avoid permission issues
+    volumes:
+      - ./Orpheus-FastAPI/models:/app/models
+    working_dir: /app
+    env_file:
+      - .env # For ORPHEUS_MODEL_NAME
+    command: >
+      sh -c '
+      if [ ! -f /app/models/${ORPHEUS_MODEL_NAME} ]; then
+        echo "Downloading Orpheus model ${ORPHEUS_MODEL_NAME}..."
+        wget -P /app/models https://huggingface.co/lex-au/${ORPHEUS_MODEL_NAME}/resolve/main/${ORPHEUS_MODEL_NAME}
+      else
+        echo "Orpheus model ${ORPHEUS_MODEL_NAME} already exists."
+      fi'
+    restart: "no"
+    networks:
+      - voice_ai_net
+
+  stt-api: # Faster Whisper Server
+    container_name: stt_api_server
+    image: fedirz/faster-whisper-server:latest-cpu # Use CPU image
+    ports:
+      - "8000:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface # Persist downloaded models
+    environment:
+      - WHISPER__MODEL=${WHISPER_MODEL_NAME:-Systran/faster-whisper-large-v3}
+      - WHISPER__INFERENCE_DEVICE=${WHISPER_INFERENCE_DEVICE:-cpu} # Explicitly set to cpu
+      - WHISPER__COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8} # Use int8 for CPU for better performance
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+    # Remove GPU deploy section
+    restart: unless-stopped
+    networks:
+      - voice_ai_net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_llm_server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama # Persist models and data
+    # Remove GPU deploy section
+    tty: true # Keeps the container running
+    restart: unless-stopped
+    networks:
+      - voice_ai_net
+    # No explicit command to pull model here; agent will request it.
+    # Or, you can add an entrypoint script to pull OLLAMA_LLM_MODEL_TO_PULL
+
+  local-agent:
+    container_name: local_voice_ai_agent
+    build:
+      context: ./local-voice-ai/agent
+      dockerfile: Dockerfile
+    env_file:
+      - .env # For LIVEKIT_API_KEY, LIVEKIT_API_SECRET
+    environment:
+      - LIVEKIT_URL=${LIVEKIT_SERVER_URL_INTERNAL}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - STT_BASE_URL=${STT_API_INTERNAL_URL}
+      - LLM_BASE_URL=${LLM_API_INTERNAL_URL}
+      - TTS_BASE_URL=${ORPHEUS_TTS_API_INTERNAL_URL}
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL_TO_PULL:-llama3.2:3b} # Agent will use this model name
+      # Add any other env vars your agent needs
+    depends_on:
+      - livekit
+      - orpheus-tts-api
+      - stt-api
+      - ollama
+    restart: unless-stopped
+    networks:
+      - voice_ai_net
+
+  frontend:
+    container_name: voice_assistant_frontend
+    build:
+      context: ./local-voice-ai/voice-assistant-frontend
+      dockerfile: Dockerfile
+      # Pass build args for external LiveKit URL if needed by Dockerfile
+      args:
+        NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+        LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+        LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env # For LIVEKIT_API_KEY, LIVEKIT_API_SECRET
+    environment:
+      # These are primarily for the server-side part of Next.js (e.g., API routes)
+      LIVEKIT_URL: ${LIVEKIT_SERVER_URL_INTERNAL} # For server-side token generation if any
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      # NEXT_PUBLIC_LIVEKIT_URL is passed as build arg, but can be set here too if Dockerfile expects it at runtime
+      NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+    depends_on:
+      - livekit
+      - local-agent # Ensure agent is up before frontend, though not strictly necessary for UI load
+    restart: unless-stopped
+    networks:
+      - voice_ai_net
+
+networks:
+  voice_ai_net:
+    driver: bridge
+
+volumes:
+  ollama_data: # Define the named volume for ollama
+  # Orpheus-FastAPI/models is mounted directly from host in orpheus-tts-model and orpheus-model-downloader
+  # ~/.cache/huggingface is mounted directly from host in stt-api
