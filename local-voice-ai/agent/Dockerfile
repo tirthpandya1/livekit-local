@@ -35,9 +35,9 @@ RUN chown -R appuser /home/appuser/.cache
 WORKDIR /home/appuser
 
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --user -r requirements.txt
 
 COPY . .
 
 ENTRYPOINT ["python", "myagent.py"]
-CMD ["start"]
+CMD ["dev"]

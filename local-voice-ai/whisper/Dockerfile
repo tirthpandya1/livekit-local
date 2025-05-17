@@ -5,7 +5,7 @@ RUN apt-get update && \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir vox-box
+RUN pip install vox-box
 
 WORKDIR /app
 

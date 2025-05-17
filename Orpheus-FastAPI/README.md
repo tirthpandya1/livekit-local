@@ -155,7 +155,7 @@ conda activate orpheus-tts
 
 3. Install PyTorch with CUDA support:
 ```bash
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
 
 4. Install other dependencies:

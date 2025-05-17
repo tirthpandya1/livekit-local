@@ -2,19 +2,16 @@ services:
   livekit:
     image: livekit/livekit-server:latest
     container_name: livekit_server
-    command: --config /etc/livekit.yaml
+    command: --config /etc/livekit.yaml --dev --bind 0.0.0.0
     ports:
       - "${LIVEKIT_TCP_PORT:-7881}:${LIVEKIT_TCP_PORT:-7881}" # WebRTC over TCP
-      - "${LIVEKIT_UDP_PORT_START:-5000}-${LIVEKIT_UDP_PORT_END:-6000}:${LIVEKIT_UDP_PORT_START:-5000}-${LIVEKIT_UDP_PORT_END:-6000}/udp" # WebRTC over UDP
       - "7880:7880" # Client API (WS)
     volumes:
       - ./livekit_config.yaml:/etc/livekit.yaml
     environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      - LIVEKIT_KEYS=${LIVEKIT_KEYS}
       - LIVEKIT_PORT=7880
       - LIVEKIT_RTC_PORT=${LIVEKIT_TCP_PORT:-7881}
-      - LIVEKIT_UDP_PORT_START=${LIVEKIT_UDP_PORT_START:-5000}
-      - LIVEKIT_UDP_PORT_END=${LIVEKIT_UDP_PORT_END:-6000}
     restart: unless-stopped
     networks:
       - voice_ai_net
@@ -144,6 +141,26 @@ services:
     # No explicit command to pull model here; agent will request it.
     # Or, you can add an entrypoint script to pull OLLAMA_LLM_MODEL_TO_PULL
 
+  agent-model-downloader:
+    container_name: agent_model_downloader
+    image: curlimages/curl:latest
+    volumes:
+      - agent_models_data:/app/models
+    working_dir: /app
+    command: >
+      sh -c '
+      MODEL_PATH="/app/models/all-MiniLM-L6-v2"
+      if [ ! -d "$MODEL_PATH" ]; then
+        echo "Downloading all-MiniLM-L6-v2 model..."
+        mkdir -p "$MODEL_PATH"
+        wget -r -np -nH --cut-dirs=2 -P "$MODEL_PATH" https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/
+      else
+        echo "all-MiniLM-L6-v2 model already exists."
+      fi'
+    restart: "no"
+    networks:
+      - voice_ai_net
+
   local-agent:
     container_name: local_voice_ai_agent
     build:
@@ -161,11 +178,14 @@ services:
       - TTS_BASE_URL=${ORPHEUS_TTS_API_INTERNAL_URL}
       - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL_TO_PULL:-llama3.2:3b} # Agent will use this model name
       # Add any other env vars your agent needs
+    volumes:
+      - agent_models_data:/app/models/sentence-transformers/all-MiniLM-L6-v2 # Mount the downloaded model
     depends_on:
       - livekit
       - orpheus-tts-api
       - stt-api
       - ollama
+      - agent-model-downloader # Depend on the downloader
     restart: unless-stopped
     networks:
       - voice_ai_net
@@ -205,5 +225,6 @@ networks:
 
 volumes:
   ollama_data: # Define the named volume for ollama
+  agent_models_data: # Define the named volume for agent models
   # Orpheus-FastAPI/models is mounted directly from host in orpheus-tts-model and orpheus-model-downloader
   # ~/.cache/huggingface is mounted directly from host in stt-api

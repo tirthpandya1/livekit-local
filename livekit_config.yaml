@@ -6,9 +6,6 @@ bind_addresses: # Addresses to bind to for the API server
   - 0.0.0.0
 rtc:
   tcp_port: 7881
-  # udp_port: 7882 # If not using a range
-  port_range_start: 5000 # Must match docker-compose port mapping
-  port_range_end: 6000   # Must match docker-compose port mapping
 
 # Development mode settings (optional, useful for local dev)
 development: true
@@ -20,4 +17,3 @@ keys:
 # Logging configuration
 logging:
   level: debug
-  format: text
