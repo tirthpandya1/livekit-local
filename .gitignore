@@ -2,3 +2,4 @@
 .env
 venv
 ollama_data
+local-voice-ai/telephony/agentOne.log

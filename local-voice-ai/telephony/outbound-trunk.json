@@ -2,7 +2,7 @@
   "trunk": {
     "name": "My outbound trunk",
     "address": "trextornado1.pstn.twilio.com",
-    "numbers": ["+12315709205"],
+    "numbers": ["12315709205"],
     "auth_username": "T",
     "auth_password": "LiveKitCred@1"
   }

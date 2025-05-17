@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 # Configuration
 room_name = "my-room"
 agent_name = "test-agent"
-outbound_trunk_id = "ST_MdAdzgHaQqcC"
+outbound_trunk_id = "ST_mvPx65tTBegY"  # Updated SIP trunk ID
 
 async def make_call(phone_number):
     """Create a dispatch and add a SIP participant to call the phone number"""
@@ -44,7 +44,9 @@ async def make_call(phone_number):
                 room_name=room_name,
                 sip_trunk_id=outbound_trunk_id,
                 sip_call_to=phone_number,
-                participant_identity="phone_user",
+                participant_identity="T",  # Match the Twilio credential username
+                # Set to true to wait until the call is answered before returning
+                wait_until_answered=False
             )
         )
         logger.info(f"Created SIP participant: {sip_participant}")
@@ -56,6 +58,7 @@ async def make_call(phone_number):
 
 async def main():
     # Replace with the actual phone number including country code
+    # Try with the verified number format
     phone_number = "+918469092075"
     await make_call(phone_number)
 

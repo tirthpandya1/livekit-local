@@ -188,9 +188,9 @@ async def entrypoint(ctx: JobContext):
         room=ctx.room
     )
 
-    await session.generate_reply(
-    instructions="Greet the user and offer your assistance."
-)
+#     await session.generate_reply(
+#     instructions="Greet the user and offer your assistance."
+# )
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, job_memory_warn_mb=1500, agent_name="my-livekit-local-agent"))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, job_memory_warn_mb=1500))
