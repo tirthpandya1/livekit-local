@@ -11,7 +11,7 @@ services:
     ports:
       - "7880:7880"
       - "7881:7881"
-    command: --dev --bind "0.0.0.0"
+    command: --dev --redis --bind "0.0.0.0"
     networks:
       - agent_network
 

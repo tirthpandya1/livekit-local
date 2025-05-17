@@ -1,19 +1,68 @@
-# Basic LiveKit configuration for local development
-# For more options, see: https://docs.livekit.io/self-hosting/configuration
+# livekit.yaml - Updated configuration for LiveKit server
 
-port: 7880 # API port for clients (WS)
-bind_addresses: # Addresses to bind to for the API server
+# Core LiveKit server settings
+port: 7880             # API port for clients (HTTP/Twirp API, WebSockets)
+bind_addresses:        # Addresses to bind to for the API server
   - 0.0.0.0
+
+# --- WebRTC / Real-time Communication (RTC) Settings ---
+# UDP is absolutely essential for real-time media (RTP) for WebRTC clients.
 rtc:
-  tcp_port: 7881
+  # The main UDP port LiveKit listens on for client connections and media.
+  # This should typically be the same as your main LiveKit API port.
+  # It's crucial that this port is open for UDP traffic.
+  udp_port: 7880
+
+  # A range of UDP ports used for RTP media streams.
+  # This range MUST be open in your firewall for both inbound and outbound UDP.
+  rtp_port: 10000-20000
+
+  # CRITICAL: If your LiveKit server is behind a NAT or firewall,
+  # you MUST set this to your server's PUBLIC IP address.
+  # This tells LiveKit its external IP for generating correct SIP/RTP headers.
+  # If you don't know it, search "what is my ip" on Google from your server.
+  external_ip: "152.59.19.148" # <<<<<<<< REPLACE THIS!
+
+  # You can uncomment and configure STUN/TURN if you have external clients
+  # connecting to your LiveKit server and need NAT traversal.
+  # stun_port: 3478
+  # turn_port: 3478
+  # turn_certs:
+  #   - cert_file: /path/to/turn_cert.pem
+  #     key_file: /path/to/turn_key.pem
+
+  tcp_port: 7881 # Your existing TCP fallback port
+
+# --- SIP Service Settings ---
+# UDP is also essential for SIP signaling with most providers (like Twilio).
+sip:
+  enabled: true       # Enable the SIP service
+  sip_port: 5060      # Standard SIP UDP port for incoming/outgoing signaling
+  rtp_port: 10000-20000 # Same RTP range as RTC, must be open for SIP media
+
+  # Optional: If you use SIP over TLS (SIPS) and have certificates
+  # tls:
+  #   port: 5061
+  #   cert_file: "path/to/your/sip_tls_cert.pem"
+  #   key_file: "path/to/your/sip_tls_key.pem"
+  #   tls_verify_client: false # Use with caution
+
+# --- Redis Configuration ---
+# REQUIRED for LiveKit's SIP functionality for state management.
+# Ensure your Redis server is running and accessible at this address.
+redis:
+  address: "localhost:6379" # Replace with your Redis server's IP/hostname and port
+  # username: ""              # Uncomment and set if your Redis requires authentication
+  # password: ""              # Uncomment and set if your Redis requires authentication
+  db: 0                     # Redis database number (optional, defaults to 0)
 
 # Development mode settings (optional, useful for local dev)
 development: true
 
 # API keys (replace with your own in production)
 keys:
-  devkey: secret
+  devkey: secret # Note: In production, use environment variables and stronger keys
 
 # Logging configuration
 logging:
-  level: debug
+  level: debug # Keep at 'debug' for now to see detailed SIP logs

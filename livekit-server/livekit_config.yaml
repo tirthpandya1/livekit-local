@@ -1,0 +1,49 @@
+# livekit_config.yaml - Configuration tailored for LiveKit v1.8.4 based on your docs sample
+
+# Core LiveKit server settings
+port: 7880             # Main TCP port for API (HTTP/Twirp API, WebSockets)
+bind_addresses:        # Addresses to bind to for the API server
+  - 0.0.0.0
+
+# --- WebRTC / Real-time Communication (RTC) Settings ---
+# UDP is essential for real-time media (RTP) for WebRTC clients and SIP media.
+rtc:
+  # UDP ports to use for client traffic and RTP media.
+  # This range MUST be open in your firewall for both inbound and outbound UDP.
+  # This replaces 'udp_port' and 'rtp_port' fields from the previous config.
+  port_range_start: 10000 # Using a range that includes your previous RTP range
+  port_range_end: 20000   # (You can also use 50000-60000 as in your sample if preferred)
+
+  # When set to true, LiveKit attempts to discover the host's public IP via STUN.
+  # This is crucial for cloud environments where hosts have an internal IP
+  # that maps to an external one.
+  # This replaces the 'external_ip' string field from the previous config.
+  use_external_ip: true
+
+  # If 'use_external_ip: true' doesn't reliably detect your public IP,
+  # and if your specific v1.8.4 build *does* have a hidden or less common field,
+  # you *might* need to explicitly set it. However, the sample suggests 'use_external_ip'.
+  # For now, let's stick to 'use_external_ip: true'.
+
+  tcp_port: 7881 # Your existing TCP fallback port
+
+# --- Redis Configuration ---
+# REQUIRED for LiveKit's SIP functionality for state management (even if SIP isn't
+# explicitly configured in this YAML, it relies on Redis).
+# Ensure your Redis server is running and accessible at this address.
+redis:
+  address: "localhost:6379" # Replace with your Redis server's actual IP/hostname and port
+  # username: ""              # Uncomment and set if your Redis requires authentication
+  # password: ""              # Uncomment and set if your Redis requires authentication
+  db: 0                     # Redis database number (optional, defaults to 0)
+
+# Development mode settings (optional, useful for local dev)
+development: true
+
+# API keys (replace with your own in production)
+keys:
+  devkey: secret # Note: In production, use environment variables and stronger keys
+
+# Logging configuration
+logging:
+  level: debug # Keep at 'debug' for now to see detailed logs

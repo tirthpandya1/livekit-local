@@ -3,6 +3,8 @@ services:
     image: livekit/livekit-server:latest
     container_name: livekit_server
     command: --config /etc/livekit.yaml --dev --bind 0.0.0.0
+    redis:
+      address: 172.17.0.1:6379
     ports:
       - "${LIVEKIT_TCP_PORT:-7881}:${LIVEKIT_TCP_PORT:-7881}" # WebRTC over TCP
       - "7880:7880" # Client API (WS)
@@ -120,26 +122,26 @@ services:
     networks:
       - voice_ai_net
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama_llm_server
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./ollama_data:/root/.ollama # Persist models and data
-    deploy: # GPU passthrough for Ollama
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-              count: all # or specify device IDs: "device=0,1"
-    tty: true # Keeps the container running
-    restart: unless-stopped
-    networks:
-      - voice_ai_net
-    # No explicit command to pull model here; agent will request it.
-    # Or, you can add an entrypoint script to pull OLLAMA_LLM_MODEL_TO_PULL
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama_llm_server
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ./ollama_data:/root/.ollama # Persist models and data
+  #   deploy: # GPU passthrough for Ollama
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             capabilities: [gpu]
+  #             count: all # or specify device IDs: "device=0,1"
+  #   tty: true # Keeps the container running
+  #   restart: unless-stopped
+  #   networks:
+  #     - voice_ai_net
+  #   # No explicit command to pull model here; agent will request it.
+  #   # Or, you can add an entrypoint script to pull OLLAMA_LLM_MODEL_TO_PULL
 
   agent-model-downloader:
     container_name: agent_model_downloader
@@ -147,16 +149,7 @@ services:
     volumes:
       - agent_models_data:/app/models
     working_dir: /app
-    command: >
-      sh -c '
-      MODEL_PATH="/app/models/all-MiniLM-L6-v2"
-      if [ ! -d "$MODEL_PATH" ]; then
-        echo "Downloading all-MiniLM-L6-v2 model..."
-        mkdir -p "$MODEL_PATH"
-        wget -r -np -nH --cut-dirs=2 -P "$MODEL_PATH" https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/
-      else
-        echo "all-MiniLM-L6-v2 model already exists."
-      fi'
+    command: sh -c 'MODEL_PATH="/app/models/all-MiniLM-L6-v2"; if [ ! -d "$MODEL_PATH" ]; then echo "Downloading all-MiniLM-L6-v2 model..."; mkdir -p "$MODEL_PATH"; wget -r -np -nH --cut-dirs=2 -P "$MODEL_PATH" https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/; else echo "all-MiniLM-L6-v2 model already exists."; fi'
     restart: "no"
     networks:
       - voice_ai_net
@@ -184,7 +177,7 @@ services:
       - livekit
       - orpheus-tts-api
       - stt-api
-      - ollama
+      # - ollama
       - agent-model-downloader # Depend on the downloader
     restart: unless-stopped
     networks:
